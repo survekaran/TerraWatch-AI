@@ -1,0 +1,28 @@
+# GEOAI 04 default configuration. Every value here is an unvalidated starting
+# point and should be tuned on data you trust. Nothing is hard-coded elsewhere.
+
+detection:
+  max_bands: 3              # use the first N bands; band identity is NOT assumed beyond this
+  uint8_scale: 255.0        # divisor for uint8 data
+  uint16_scale: 10000.0     # divisor for 16-bit integer data (Sentinel-2 L2A style reflectance)
+  smoothing_sigma_px: 1.0   # Gaussian smoothing of the change score (nodata-aware); 0 disables
+  threshold_method: otsu    # otsu | fixed | percentile
+  fixed_threshold: 0.15     # used when threshold_method = fixed (score range 0..1)
+  percentile: 95.0          # used when threshold_method = percentile
+  otsu_floor: 0.05          # Otsu threshold is never allowed below this value
+  tile_size: 1024           # window size for raster reads
+
+validation:
+  min_valid_fraction: 0.01      # below this the input is treated as empty
+  min_overlap_fraction: 0.99    # required bounding-box overlap between the two inputs
+  grid_tolerance_px: 0.001      # allowed grid offset, in pixels, before grids count as different
+  gsd_rel_tolerance: 0.01       # allowed relative GSD difference
+
+postprocessing:
+  opening_radius_px: 1          # removes isolated noise pixels
+  closing_radius_px: 2          # fills small gaps inside regions
+  min_mapping_unit_m2: 25.0     # regions smaller than this are removed (square metres)
+
+polygons:
+  connectivity: 8               # 4 or 8
+  simplify_tolerance_px: 0.5    # fraction of a pixel; 0 disables simplification

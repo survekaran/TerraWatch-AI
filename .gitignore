@@ -1,0 +1,36 @@
+
+@'
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+*.egg-info/
+dist/
+build/
+
+# Generated outputs and local datasets
+outputs/*
+!outputs/.gitkeep
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/input/*
+!data/input/.gitkeep
+data/sample/*
+!data/sample/.gitkeep
+
+# Model weights
+models/*.pt
+models/*.pth
+models/*.onnx
+
+# Local editor files
+.vscode/
+.idea/
+'@ | Set-Content -Encoding utf8 .gitignore
