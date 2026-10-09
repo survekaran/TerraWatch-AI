@@ -1,5 +1,7 @@
 # GEOAI 04: Satellite Change Detection (Phase 1 prototype)
 
+rakshit logged in
+
 A local, modular pipeline that compares two co-registered GeoTIFFs, detects candidate physical
 change with a transparent **baseline image-difference detector**, and exports attributed GIS
 polygons (GeoPackage + GeoJSON) with a provenance record. A Streamlit app provides validation,
