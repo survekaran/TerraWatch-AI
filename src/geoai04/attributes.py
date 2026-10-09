@@ -1,4 +1,4 @@
-"""Module H (Phase 1 subset): physical and detector attributes for each change polygon.
+"""Module H: physical and detector attributes for each change polygon.
 
 Area, projected centroid and lon/lat centroid are computed on the *unsimplified* geometry
 in a metric CRS, then geometries stay in the scene CRS (reprojected only at export).
@@ -6,9 +6,9 @@ in a metric CRS, then geometries stay in the scene CRS (reprojected only at expo
 Three concepts are kept separate and none is a validated physical truth:
   * area_m2          physical size of the mapped region
   * change_magnitude mean change score inside the region (0..1)
-  * confidence       fraction of region pixels at or above the detection threshold
-                     (detector support; NOT a calibrated probability)
-Severity tiers, type tags and quality flags arrive in Phase 2.
+  * confidence       mean margin-based detector support over region pixels:
+                     mean(clip((score - threshold) / (1 - threshold), 0, 1)).
+                     This is an UNCALIBRATED detector-support measure, NOT a probability.
 """
 from __future__ import annotations
 
@@ -57,7 +57,11 @@ def build_attributes(raw: gpd.GeoDataFrame, labels: np.ndarray, scores: np.ndarr
 
     ids = raw["label_id"].to_numpy()
     magnitude = ndimage.mean(scores, labels, ids)
-    support = ndimage.mean((scores >= threshold).astype(np.float32), labels, ids)
+
+    # Informative margin-based support: clip((score - threshold) / (1 - threshold), 0, 1)
+    denom = max(1.0 - threshold, 1e-6)
+    margin = np.clip((scores - threshold) / denom, 0.0, 1.0)
+    support = ndimage.mean(margin, labels, ids)
     pixels = ndimage.sum(np.ones_like(scores), labels, ids)
 
     out = raw.copy()

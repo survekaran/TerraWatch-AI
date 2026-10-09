@@ -17,8 +17,9 @@ Two GeoTIFFs that already:
 - share the same pixel grid (same size, pixel size and origin) and the same band count,
 - cover the same area.
 
-Phase 1 never reprojects, resamples or aligns for you. If your files differ, prepare them first,
-for example:
+Phase 2 includes an automated sub-pixel alignment gate and optional auto-correction.
+Inputs must already share the same pixel grid and CRS; if your files differ in grid or CRS,
+prepare them first, for example:
 
     gdalwarp -t_srs EPSG:32643 -tr 0.5 0.5 -te <xmin ymin xmax ymax> -r bilinear in.tif out.tif
 
@@ -36,4 +37,5 @@ pipeline. Preferred demo data: a real before/after pair from OpenAerialMap or Se
   invent a CRS for them.
 
 ## Model weights
-`models/` is empty in Phase 1 (see `models/README.md`).
+`models/` is empty in Phase 1 & 2 (see `models/README.md`; learned detector arrives in Phase 3).
+
