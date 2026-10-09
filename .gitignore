@@ -13,6 +13,9 @@ venv/
 dist/
 build/
 
+# datasets
+datasets
+
 # Generated outputs and local datasets
 outputs/*
 !outputs/.gitkeep
