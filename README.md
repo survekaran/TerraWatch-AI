@@ -125,3 +125,4 @@ only about 1% of the scene changed). Do not quote these as real-world accuracy.
 4. Open the GeoPackage in QGIS to prove the export. Show `provenance.json`.
 5. Show a rejection: upload a file with no CRS (or a PNG) and read the error.
 6. Run `python -m pytest` live and show the known-area test.
+read 
