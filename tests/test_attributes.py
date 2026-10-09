@@ -24,7 +24,8 @@ def test_area_and_centroid_known_polygon_projected():
     assert abs(r.centroid_x - (500000 + 40 * 0.5)) < 1e-6
     assert abs(r.centroid_y - (4500000 - 20 * 0.5)) < 1e-6
     assert r.projected_crs == "EPSG:32633"
-    assert abs(r.change_magnitude - 0.6) < 1e-6 and r.confidence == 1.0
+    # Phase 2 confidence is margin-based: clip((0.6 - 0.2) / (1 - 0.2), 0, 1) = 0.5
+    assert abs(r.change_magnitude - 0.6) < 1e-6 and abs(r.confidence - 0.5) < 1e-6
     assert 14.9 < r.centroid_lon < 15.1 and 40.0 < r.centroid_lat < 41.5
 
 

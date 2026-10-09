@@ -26,3 +26,59 @@ postprocessing:
 polygons:
   connectivity: 8               # 4 or 8
   simplify_tolerance_px: 0.5    # fraction of a pixel; 0 disables simplification
+
+alignment:
+  warn_px: 0.5                  # unvalidated placeholder: shift >= warn_px raises warning
+  fail_px: 2.0                  # unvalidated placeholder: shift >= fail_px raises AlignmentError
+  upsample_factor: 20           # sub-pixel precision for phase cross correlation
+  n_windows: 9                  # number of sample windows across the image
+  window_size_px: 128           # size of sample window in pixels
+  texture_threshold: 0.02       # minimum gradient std to consider window textured
+  min_windows: 2                # minimum valid textured windows required for alignment
+  spread_warn_px: 1.0           # threshold on inter-window spread to warn about contamination
+  block_on_fail: true           # raise AlignmentError on status == 'fail'
+  auto_correct: false           # shift after image when misaligned
+  interpolation: linear         # nearest | linear | spline for auto-correction shift
+
+routing:
+  high_res_max_gsd_m: 2.0       # GSD <= 2.0m: high_res_rgb route
+  coarse_min_gsd_m: 5.0         # 5m <= GSD <= 30m: multispectral_coarse route
+  coarse_max_gsd_m: 30.0
+  weights_path: null            # path to learned weights (None in Phase 2)
+  fallback_policy: baseline     # fallback policy when learned detector is unavailable
+
+bands:
+  band_map: {}                  # name to 1-based index (e.g. {blue: 1, green: 2, red: 3, nir: 4})
+  vegetation_proxy_exg: true    # toggleable ExG proxy for RGB-only imagery
+
+tagging:
+  min_compactness_building: 0.35 # unvalidated placeholder
+  min_building_area_m2: 20.0
+  max_building_area_m2: 2500.0
+  veg_drop_threshold: 0.15
+  built_rise_threshold: 0.08
+  brightness_rise_threshold: 0.06
+  fluctuation_min_area_m2: 200.0
+  max_compactness_diffuse: 0.40
+  misregistration_edge_threshold: 0.20
+  misregistration_min_elongation: 2.5
+  misregistration_width_factor_px: 2.5
+  low_quality_nodata_fraction: 0.15
+  disagreement_iou_threshold: 0.40
+
+severity:
+  mode: emergency               # emergency | enforcement
+  area_rule: absolute           # absolute | percentile
+  min_polygons_for_percentile: 10
+  percentile_critical: 90.0
+  percentile_medium: 60.0
+  emergency_crit_conf: 0.60     # unvalidated placeholder
+  emergency_med_conf: 0.50
+  emergency_critical_area_m2: 500.0
+  emergency_medium_area_m2: 100.0
+  enforcement_crit_conf: 0.85   # unvalidated placeholder
+  enforcement_med_conf: 0.75
+  enforcement_critical_area_m2: 1000.0
+  enforcement_medium_area_m2: 200.0
+  context_layers: []            # local vector files for tier bumping
+

@@ -60,9 +60,10 @@ def test_rasters_keep_crs_and_transform(run, synthetic_pair):
 
 def test_provenance_content(run):
     p = json.loads((run.run_dir / "provenance.json").read_text())
-    assert p["status"] == "completed" and p["phase"] == 1
+    assert p["status"] == "completed" and p["phase"] == 2
     assert p["detector"]["learned_model_used"] is False and p["detector"]["name"] == "baseline_difference"
-    assert p["alignment"]["status"] == "not_run"
+    assert p["alignment"]["status"] == "pass"
+    assert p["cloud_shadow_screening"] == "not_performed"
     assert len(p["inputs"]["before"]["sha256"]) == 64
     assert p["counts"]["polygons_after_area_filter"] == 3
     assert p["counts"]["components_raw"] >= p["counts"]["polygons_before_area_filter"]
