@@ -96,6 +96,22 @@ def render_heatmap_preview(
     return buf.getvalue()
 
 
+def render_mask_preview(
+    mask_arr: np.ndarray,
+    preview_size: tuple[int, int],
+    color_rgba: tuple[int, int, int, int] = (6, 182, 212, 160),
+) -> bytes:
+    """Render a colored transparent PNG preview of a binary mask."""
+    ow, oh = preview_size
+    im = Image.fromarray((mask_arr > 0).astype(np.uint8) * 255).resize((ow, oh), Image.Resampling.NEAREST)
+    resized_mask = np.array(im) > 0
+    rgba = np.zeros((oh, ow, 4), dtype=np.uint8)
+    rgba[resized_mask] = color_rgba
+    buf = io.BytesIO()
+    Image.fromarray(rgba, mode="RGBA").save(buf, format="PNG")
+    return buf.getvalue()
+
+
 def _poly_path(poly: Polygon, inv, sx: float, sy: float) -> str:
     def ring(coords):
         pts = [inv @ (x, y) for x, y in coords]

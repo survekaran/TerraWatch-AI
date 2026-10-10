@@ -11,6 +11,8 @@ detection:
   percentile: 95.0          # used when threshold_method = percentile
   otsu_floor: 0.05          # Otsu threshold is never allowed below this value
   tile_size: 1024           # window size for raster reads
+  radiometric_normalization: false  # match per-band mean/std on valid pixels before differencing
+  radiometric_norm_method: mean_std
 
 validation:
   min_valid_fraction: 0.01      # below this the input is treated as empty
@@ -44,8 +46,6 @@ routing:
   high_res_max_gsd_m: 2.0       # GSD <= 2.0m: high_res_rgb route
   coarse_min_gsd_m: 5.0         # 5m <= GSD <= 30m: multispectral_coarse route
   coarse_max_gsd_m: 30.0
-  weights_path: null            # path to learned weights (None in Phase 2)
-  fallback_policy: baseline     # fallback policy when learned detector is unavailable
 
 bands:
   band_map: {}                  # name to 1-based index (e.g. {blue: 1, green: 2, red: 3, nir: 4})
@@ -79,6 +79,10 @@ severity:
   enforcement_crit_conf: 0.85   # unvalidated placeholder
   enforcement_med_conf: 0.75
   enforcement_critical_area_m2: 1000.0
-  enforcement_medium_area_m2: 200.0
+  implausible_change_fraction: 0.20 # default fallback threshold
+  implausible_change_fraction_emergency: 0.20
+  implausible_change_fraction_enforcement: 0.20
+  # Note: Genuine severe regional events (e.g. extensive flooding, wildfires) can exceed 20% change. Analysts can raise this threshold for large-scale disaster assessments.
   context_layers: []            # local vector files for tier bumping
+
 

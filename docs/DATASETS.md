@@ -26,16 +26,7 @@ prepare them first, for example:
 Put prepared files in `data/input/` (git-ignored) and select them in the app or pass paths to the
 pipeline. Preferred demo data: a real before/after pair from OpenAerialMap or Sentinel-2 imagery.
 
-## Optional benchmark datasets
-- **LEVIR-CD** (high-resolution building change): needed only for the learned model in Phase 3.
-  Verify whether the tiles carry georeferencing before use; plain image patches will be rejected.
-- **OSCD** (Sentinel-2): for the multispectral mode in Phase 2.
-- **ICCD (Indian Cities Change Detection)**: the public sample contains 1024 x 1024 RGB **PNG**
-  tiles with change masks. They carry no CRS, so the validator rejects them by design (checked on
-  an Agra sample pair). They are useful for training or evaluating a learned model on pixels, but
-  they cannot go through this georeferenced pipeline unless real georeferencing is obtained. Do not
-  invent a CRS for them.
-
-## Model weights
-`models/` is empty in Phase 1 & 2 (see `models/README.md`; learned detector arrives in Phase 3).
+## Benchmark and test datasets
+- **OSCD** (Sentinel-2): for multispectral coarse mode with band maps.
+- **Sample pairs**: Place GeoTIFF pairs with projected metric CRS in `data/input/`.
 

@@ -63,7 +63,6 @@ with st.sidebar:
         b_red = st.number_input("Red band index (1-based)", 0, 32, 0)
         b_nir = st.number_input("NIR band index (1-based)", 0, 32, 0)
         b_swir1 = st.number_input("SWIR1 band index (1-based)", 0, 32, 0)
-
     st.header("Status of modules")
     for line in PHASE2_NOT_IMPLEMENTED:
         st.caption("• " + line)
@@ -200,8 +199,24 @@ if "result" in st.session_state:
     m4.metric("Severity Mode", res.routing.policy if res.routing else mode)
     m5.metric("Runtime", f"{res.elapsed_s:.1f}s")
 
+    if any("Implausible change fraction" in str(w) for w in res.warnings):
+        warn_text = next(str(w) for w in res.warnings if "Implausible change fraction" in str(w))
+        st.error(
+            f"⚠️ **Implausible Change Fraction Warning**: {warn_text}\n\n"
+            "All detected polygons have been assigned to severity tier **Review** (reason: `implausible_change_fraction`).\n\n"
+            "*Note for Analysts*: Genuine severe regional events (e.g. extensive flooding or wildfires) can exceed the threshold. "
+            "Analysts can configure `implausible_change_fraction_emergency` or `implausible_change_fraction_enforcement` in `config/default.yaml` to raise it."
+        )
+
     for w in res.warnings:
         st.warning(w)
+
+    # Detector & Routing Status
+    st.markdown("#### Detector & Routing Status")
+    st_c1, st_c2 = st.columns(2)
+    st_c1.write(f"**Detector Used:** `{res.detection.detector}`")
+    st_c1.write(f"**Policy:** `{res.routing.policy}`")
+    st_c2.write(f"**Output Granularity:** `{res.routing.output_granularity}`")
 
     b_png, a_png, psize, fsize = render_pair_previews(before, after)
     with rasterio.open(before) as src:
@@ -213,7 +228,10 @@ if "result" in st.session_state:
         heatmap_png = render_heatmap_preview(scores_tif, psize)
 
     components.html(
-        build_split_view_html(b_png, a_png, res.polygons, tr, psize, fsize, heatmap_png=heatmap_png),
+        build_split_view_html(
+            b_png, a_png, res.polygons, tr, psize, fsize,
+            heatmap_png=heatmap_png,
+        ),
         height=740,
         scrolling=True,
     )

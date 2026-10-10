@@ -1,5 +1,5 @@
 from geoai04.config import AppConfig
-from geoai04.resolution_router import resolve_learned_weights, route_inputs
+from geoai04.resolution_router import route_inputs
 from geoai04.validator import RasterInfo
 
 
@@ -23,15 +23,13 @@ def _make_info(gsd_m=0.5, count=3, width=1024, height=1024):
     )
 
 
-def test_high_res_rgb_falls_back_when_learned_detector_unavailable():
+def test_high_res_rgb_routes_to_baseline_difference():
     info = _make_info(gsd_m=0.5, count=3)
     cfg = AppConfig()
 
     dec = route_inputs(info, info, cfg)
     assert dec.policy == "high_res_rgb"
     assert dec.detector == "baseline_difference"
-    assert dec.learned_weights_available is False
-    assert any("Learned detector is unavailable in Phase 2" in r for r in dec.reasons)
     assert dec.output_granularity == "individual_buildings"
 
 
@@ -86,11 +84,3 @@ def test_gsd_derived_from_transform_not_dimensions():
     cfg.bands.band_map = {"nir": 4, "red": 3}
     dec2 = route_inputs(big_coarse, big_coarse, cfg)
     assert dec2.policy == "multispectral_coarse"
-
-
-def test_resolve_learned_weights_returns_none_for_missing():
-    cfg = AppConfig()
-    assert resolve_learned_weights(cfg.routing) is None
-
-    cfg.routing.weights_path = "non_existent_weights.pth"
-    assert resolve_learned_weights(cfg.routing) is None

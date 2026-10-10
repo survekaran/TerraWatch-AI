@@ -16,6 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 import geopandas as gpd
+import numpy as np
 import rasterio
 import yaml
 
@@ -42,13 +43,12 @@ from .validator import InputValidationError, ValidationReport, validate_pair
 
 log = logging.getLogger("geoai04.pipeline")
 
-PHASE2_NOT_IMPLEMENTED = [
-    "Learned detector (deep neural network) is not available in Phase 2; no AI inference was performed.",
-    "Cloud and shadow screening is not performed; cloud_shadow_screening='not_performed'.",
+BASELINE_NOT_IMPLEMENTED = [
+    "Cloud and shadow screening is not implemented; cloud_shadow_screening='not_performed'.",
 ]
-
-# Backward compatibility alias
-PHASE1_NOT_IMPLEMENTED = PHASE2_NOT_IMPLEMENTED
+PHASE3_NOT_IMPLEMENTED = BASELINE_NOT_IMPLEMENTED
+PHASE2_NOT_IMPLEMENTED = BASELINE_NOT_IMPLEMENTED
+PHASE1_NOT_IMPLEMENTED = BASELINE_NOT_IMPLEMENTED
 
 
 @dataclass
@@ -241,6 +241,8 @@ def run_pipeline(
         else:
             det = run_baseline(before_path, effective_after_path, cfg.detection)
 
+        computed_other_mask = other_mask
+
         # STAGE 5: Morphology and Connected Components
         clean = clean_mask(
             det.mask, det.valid, cfg.postprocessing, px_area, cfg.polygons.connectivity
@@ -265,8 +267,23 @@ def run_pipeline(
             alignment_result=active_align,
             routing_decision=routing_dec,
             delta_rasters=delta_rasters,
-            other_mask=other_mask,
+            other_mask=computed_other_mask,
         )
+
+        # Run-level sanity check: implausible change fraction
+        valid_px = int(det.valid.sum())
+        changed_px = int(clean.mask.sum())
+        changed_fraction = float(changed_px / max(1, valid_px))
+
+        if mode == "enforcement":
+            implausible_threshold = getattr(
+                cfg.severity, "implausible_change_fraction_enforcement", cfg.severity.implausible_change_fraction
+            )
+        else:
+            implausible_threshold = getattr(
+                cfg.severity, "implausible_change_fraction_emergency", cfg.severity.implausible_change_fraction
+            )
+        is_implausible = changed_fraction > implausible_threshold
 
         # STAGE 9: Severity Engine
         with_severity = evaluate_severity(
@@ -274,6 +291,7 @@ def run_pipeline(
             cfg=cfg.severity,
             alignment_result=active_align,
             alignment_override=allow_misaligned,
+            is_implausible_change=is_implausible,
         )
 
         # STAGE 10: MMU Area Filter and Simplification
@@ -294,6 +312,8 @@ def run_pipeline(
 
         counts = {
             "valid_pixel_fraction": float(det.valid.mean()),
+            "changed_fraction": round(changed_fraction, 4),
+            "implausible_change_fraction": is_implausible,
             "threshold": det.threshold,
             "threshold_method": det.threshold_method,
             "pixel_area_m2": px_area,
@@ -307,12 +327,29 @@ def run_pipeline(
         }
 
         warnings = list(report.warnings) + list(routing_dec.warnings)
+        if is_implausible:
+            warn_msg = (
+                f"Implausible change fraction ({mode} mode): {changed_fraction:.1%} of valid scene area is flagged as changed "
+                f"(threshold: {implausible_threshold:.1%}). Flagging all detections as Review."
+            )
+            log.warning(warn_msg)
+            warnings.append(warn_msg)
         if allow_misaligned and active_align.status in {"warn", "fail"}:
             warnings.append("Misaligned pair override: results will be unreliable.")
         if len(final) == 0:
             warnings.append("No change polygons were produced with the current parameters.")
 
         elapsed = time.perf_counter() - t0
+
+        rad_norm_active = bool(
+            getattr(cfg.detection, "radiometric_normalization", False)
+            and getattr(cfg.detection, "radiometric_norm_method", "mean_std") != "off"
+        )
+        norm_method_recorded = (
+            getattr(cfg.detection, "radiometric_norm_method", "mean_std")
+            if rad_norm_active
+            else "off"
+        )
 
         # STAGE 12: Provenance record with output SHA-256 manifest
         record = {
@@ -328,14 +365,14 @@ def run_pipeline(
             "routing": routing_dec.to_dict(),
             "detector": {
                 "name": det.detector,
-                "learned_model_used": False,
-                "weights": None,
                 "bands_used": det.band_indices,
                 "indices_used": list(delta_rasters.keys()) if delta_rasters else None,
+                "radiometric_normalization": rad_norm_active,
+                "radiometric_norm_method": norm_method_recorded,
                 "description": (
                     "Spectral index difference"
                     if det.detector == SPECTRAL_DETECTOR_NAME
-                    else "Thresholded image difference; not AI inference."
+                    else "Thresholded image difference; RMS baseline analysis."
                 ),
             },
             "projected_crs_for_measurements": final["projected_crs"].iloc[0] if len(final) else None,
@@ -348,7 +385,7 @@ def run_pipeline(
         write_provenance(run_dir / "provenance.json", record)
 
         log.info(
-            "Phase 2 run completed in %.2fs: %d polygon(s), %.1f m2",
+            "Pipeline run completed in %.2fs: %d polygon(s), %.1f m2",
             elapsed, len(final), counts["total_changed_area_m2"]
         )
 
