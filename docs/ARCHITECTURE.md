@@ -1,9 +1,9 @@
-# Architecture & Stage Contracts (Phase 2)
+# Architecture & Stage Contracts
 
 ## 1. System Overview
 
 TerraWatch is a local, reproducible bi-temporal satellite change detection pipeline.
-It processes two co-registered GeoTIFF rasters (`before.tif` and `after.tif`), evaluates their alignment, selects an appropriate detection policy, computes change scores, extracts polygons, tags artifact evidence, and assigns severity tiers.
+It processes two co-registered GeoTIFF rasters (`before.tif` and `after.tif`), evaluates their alignment, routes based on resolution and band availability (Baseline Difference or Spectral Index Difference), computes change scores, extracts polygons, tags artifact evidence, and assigns severity tiers.
 
 ```
 Input Validator -> Alignment Gate -> Resolution Router -> Detector (Baseline / Spectral Index)
@@ -39,18 +39,19 @@ Input Validator -> Alignment Gate -> Resolution Router -> Detector (Baseline / S
 - **Contracts**:
   - Derives GSD strictly from affine transform and metric CRS via `estimate_gsd_m` (never from image dimensions).
   - Routes to:
-    1. `high_res_rgb`: GSD <= 2.0m, count >= 3. Checks for learned weights via `resolve_learned_weights()`. When weights are absent, falls back to baseline detector with explicit reason `"learned detector unavailable"`.
-    2. `multispectral_coarse`: 5m <= GSD <= 30m with required bands mapped. Routes to spectral index detector. Output granularity: `"built-up / land-cover change patches"`.
-    3. `unsupported_or_ambiguous`: Single band, unknown GSD, or unmapped bands. Falls back to baseline detector with explicit warnings.
+    1. `high_res_rgb`: GSD <= 2.0m, count >= 3. Routes to baseline difference detector.
+       - Output granularity: `"individual_buildings"`.
+    2. `multispectral_coarse`: 5m <= GSD <= 30m with required bands mapped. Routes to spectral index detector.
+       - Output granularity: `"built-up / land-cover change patches"`.
+    3. `unsupported_or_ambiguous`: Single band, unknown GSD, or unmapped bands. Falls back to baseline difference detector with explicit warnings.
 - **Output**: `RoutingDecision` (`policy`, `detector`, `reasons`, `warnings`, `output_granularity`).
 
 ### Stage 4: Change Detector (`baseline_detector.py` / `spectral.py`)
-- **Inputs**: Raster inputs, `DetectionConfig` or `BandsConfig`.
+- **Inputs**: Raster inputs, `DetectionConfig`, `BandsConfig`.
 - **Contracts**:
-  - `baseline_difference`: Windowed root-mean-square difference over first N bands on normalised pixel values in [0, 1].
+  - `baseline_difference`: Windowed root-mean-square difference over first N bands on normalised pixel values in [0, 1]. Optional radiometric normalization and Gaussian smoothing.
   - `spectral_index_difference`: Computes available physical indices (NDVI, NDBI, MNDWI) using explicit `band_map`. Never assumes band order. Combines absolute changes via root-mean-square. Generates signed delta rasters (`delta_ndvi`, `delta_ndbi`, `delta_exg`).
-  - NoData-aware Gaussian smoothing via normalised convolution (`smooth_scores`).
-  - Score thresholding (`apply_threshold`) using Otsu, fixed, or percentile thresholds.
+  - Score thresholding (`apply_threshold`) producing binary change mask with Otsu, fixed, or percentile thresholding.
 - **Output**: `DetectionResult` (`scores`, `valid`, `mask`, `threshold`, `threshold_method`, `band_indices`, `detector`).
 
 ### Stage 5: Morphology & MMU (`postprocessing.py`)
@@ -85,7 +86,7 @@ Input Validator -> Alignment Gate -> Resolution Router -> Detector (Baseline / S
 - **Contracts**:
   - Evaluates under `emergency` (recall-weighted) or `enforcement` (precision-weighted) modes.
   - Base tiers: `Low`, `Medium`, `Critical`.
-  - Review override: any polygon with `misregistration_suspect`, `low_quality`, `model_disagreement`, or run-level alignment warning/failure/override is assigned tier `Review`.
+  - Review override: any polygon with `misregistration_suspect`, `low_quality`, or run-level alignment warning/failure/override is assigned tier `Review`.
   - Retains pre-override tier in `base_severity` and trigger reasons in `review_reasons`.
   - Assigns `quality_flag`.
 - **Output**: GeoDataFrame with `severity_tier`, `base_severity`, `severity_mode`, `review_reasons`, `quality_flag`.
@@ -150,8 +151,6 @@ routing:
   high_res_max_gsd_m: 2.0
   coarse_min_gsd_m: 5.0
   coarse_max_gsd_m: 30.0
-  weights_path: null
-  fallback_policy: baseline
 
 bands:
   band_map: {}
@@ -186,5 +185,8 @@ severity:
   enforcement_med_conf: 0.75
   enforcement_critical_area_m2: 1000.0
   enforcement_medium_area_m2: 200.0
+  implausible_change_fraction: 0.20
+  implausible_change_fraction_emergency: 0.20
+  implausible_change_fraction_enforcement: 0.20
   context_layers: []
 ```

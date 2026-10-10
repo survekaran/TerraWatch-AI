@@ -1,7 +1,7 @@
-# Model weights
+# Models Directory
 
-Phase 1 uses no learned model. This folder is reserved for Phase 3.
+TerraWatch uses pure baseline analysis:
+- Root-Mean-Square (RMS) band differencing with adaptive (Otsu / percentile / fixed) thresholding
+- Spectral index differencing (NDVI, NDBI, MNDWI, NDWI, ExG) for multispectral imagery
 
-If you add weights later, place them here (for example `models/levir_siamese.pt`) and record the
-source, licence and checksum in `provenance.json`. Do not commit large weight files (they are
-git-ignored). Never describe a thresholded baseline result as AI inference.
+No learned weights or neural network checkpoints are required. All analysis operates transparently, deterministically, and 100% offline.

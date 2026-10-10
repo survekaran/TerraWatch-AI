@@ -35,6 +35,7 @@ def evaluate_severity(
     cfg: SeverityConfig,
     alignment_result: AlignmentResult | None = None,
     alignment_override: bool = False,
+    is_implausible_change: bool = False,
 ) -> gpd.GeoDataFrame:
     """Assign severity_tier, base_severity, severity_mode, review_reasons, and quality_flag."""
     if polygons.empty:
@@ -148,6 +149,9 @@ def evaluate_severity(
         if "model_disagreement" in tags:
             triggers.append("tag_model_disagreement")
             flags.append("model_disagreement")
+        if is_implausible_change:
+            triggers.append("implausible_change_fraction")
+            flags.append("implausible_change_fraction")
 
         if triggers:
             final_tier = "Review"

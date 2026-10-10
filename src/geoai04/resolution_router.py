@@ -10,10 +10,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import asdict, dataclass
-from pathlib import Path
 from typing import Any
 
-from .config import AppConfig, RoutingConfig
+from .config import AppConfig
 from .validator import RasterInfo
 
 log = logging.getLogger(__name__)
@@ -26,22 +25,9 @@ class RoutingDecision:
     reasons: list[str]
     warnings: list[str]
     output_granularity: str  # "individual_buildings" | "built-up / land-cover change patches" | "candidate_change_regions"
-    learned_weights_available: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
-
-
-def resolve_learned_weights(routing_cfg: RoutingConfig | None = None) -> Path | None:
-    """Resolve learned model weights file if present, returning None if missing.
-
-    Phase 2 does NOT provide learned weights; this explicitly returns None when
-    no valid weights file is configured or found, ensuring no fake AI inference is claimed.
-    """
-    if routing_cfg is None or not routing_cfg.weights_path:
-        return None
-    p = Path(routing_cfg.weights_path)
-    return p if p.is_file() else None
 
 
 def route_inputs(
@@ -53,8 +39,7 @@ def route_inputs(
 
     Policy selection:
     1. high_res_rgb: GSD <= high_res_max_gsd_m and >= 3 bands.
-       Intended for learned detector, but checks weights; falls back to baseline detector
-       with explicit reason "learned detector unavailable" when weights do not exist.
+       Routes to baseline difference detector.
        Granularity: "individual_buildings".
     2. multispectral_coarse: coarse_min_gsd_m <= GSD <= coarse_max_gsd_m and required bands in band_map.
        Routes to spectral index detector.
@@ -72,33 +57,15 @@ def route_inputs(
 
     # 1. High-resolution RGB regime
     if gsd_m is not None and gsd_m <= r_cfg.high_res_max_gsd_m and bands >= 3:
-        weights = resolve_learned_weights(r_cfg)
-        if weights is not None:
-            return RoutingDecision(
-                policy="high_res_rgb",
-                detector="learned",
-                reasons=[
-                    f"High-resolution RGB imagery ({gsd_m:.2f} m GSD, {bands} bands). "
-                    f"Using learned detector weights at {weights}."
-                ],
-                warnings=[],
-                output_granularity="individual_buildings",
-                learned_weights_available=True,
-            )
         return RoutingDecision(
             policy="high_res_rgb",
             detector="baseline_difference",
             reasons=[
                 f"High-resolution RGB imagery ({gsd_m:.2f} m GSD, {bands} bands). "
-                "Learned detector is unavailable in Phase 2 (no weights found); "
-                "falling back to baseline difference detector."
+                "Routed to baseline difference detector."
             ],
-            warnings=[
-                "Learned detector unavailable: no verified weights found. "
-                "Using baseline difference detector instead."
-            ],
+            warnings=[],
             output_granularity="individual_buildings",
-            learned_weights_available=False,
         )
 
     # Check if multispectral bands are mapped (e.g., nir + red for NDVI, or swir1 + nir for NDBI)
@@ -124,7 +91,6 @@ def route_inputs(
                     "built-up / land-cover change patches, NOT individual buildings."
                 ],
                 output_granularity="built-up / land-cover change patches",
-                learned_weights_available=False,
             )
         return RoutingDecision(
             policy="unsupported_or_ambiguous",
@@ -138,7 +104,6 @@ def route_inputs(
                 "Detections are built-up / land-cover change patches, not individual buildings."
             ],
             output_granularity="built-up / land-cover change patches",
-            learned_weights_available=False,
         )
 
     # 3. Ambiguous / unsupported fallback
@@ -162,5 +127,4 @@ def route_inputs(
             "Ambiguous or unsupported input configuration; results computed with baseline difference."
         ],
         output_granularity="candidate_change_regions",
-        learned_weights_available=False,
     )

@@ -25,6 +25,8 @@ class DetectionConfig:
     percentile: float = 95.0
     otsu_floor: float = 0.05
     tile_size: int = 1024
+    radiometric_normalization: bool = False
+    radiometric_norm_method: str = "mean_std"
 
 
 @dataclass
@@ -68,8 +70,6 @@ class RoutingConfig:
     high_res_max_gsd_m: float = 2.0
     coarse_min_gsd_m: float = 5.0
     coarse_max_gsd_m: float = 30.0
-    weights_path: str | None = None
-    fallback_policy: str = "baseline"
 
 
 @dataclass
@@ -110,6 +110,9 @@ class SeverityConfig:
     enforcement_med_conf: float = 0.75
     enforcement_critical_area_m2: float = 1000.0
     enforcement_medium_area_m2: float = 200.0
+    implausible_change_fraction: float = 0.20
+    implausible_change_fraction_emergency: float = 0.20
+    implausible_change_fraction_enforcement: float = 0.20
     context_layers: list[str] = field(default_factory=list)
 
 
